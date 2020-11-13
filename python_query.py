@@ -2,42 +2,48 @@ import httplib2
 import datetime
 import ndjson
 import json
+import pytz
 import pandas as pd
 import sys
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import bigquery
 import os
 import boto3
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Key,Attr
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="/Users/apple/Downloads/PemKeys/charged-mission-258720-e5c930f3e11b.json"
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('daniyal-test')
-time =  "2017-01-30 00:00:00+00"
-os.environ["BUCKET_NAME"] = "daniyal-ec2-bucket"
-bucket_name =os.environ["BUCKET_NAME"]
+time =  "2020-05-27T23:26:39.230Z"
+bucket_name ="daniyal-ec2-bucket"
+query = """
+    SELECT * FROM `charged-mission-258720.test.auditlogs` _where_  _limit_  """
 
 
-response = table.query(
-        ProjectionExpression="#ts",
-        ExpressionAttributeNames={"#ts": "timestamp"},
-        KeyConditionExpression=
-            Key('timestamp').eq(time),
-        ScanIndexForward= False,
-            Limit= 1    
-    )
-print(len(response['Items']))
+response = table.scan(FilterExpression=Attr("timestamp").gt(time))
+
+
+
 
 if len(response['Items']) ==0 :
-    query = 'SELECT * FROM `charged-mission-258720.test.auditlogs` limit 10'
+    query = query.replace("_where_", "")
+    query = query.replace("_limit_", "")
 else:
-    query = 'SELECT * FROM `charged-mission-258720.test.auditlogs` WHERE receiveTimestamp > TIMESTAMP("2017-01-30 00:00:00+00") limit 2'
+   query = query.replace("_where_", " WHERE timestamp > @time ")
+   query = query.replace("_limit_", "limit 2") 
 
 client = bigquery.Client()
-QUERY = ( query)
-query_job = client.query(QUERY).to_dataframe()  # API request
-rows = query_job.to_json(orient='records',date_format='iso') # Waits for query to finish
 
+QUERY = query
+job_config = bigquery.QueryJobConfig(
+    query_parameters=[
+        bigquery.ScalarQueryParameter("time", "STRING", time),
+    ]
+)
+
+query_job = client.query(QUERY, job_config=job_config).to_dataframe()  # API request
+
+rows = query_job.to_json(orient='records',date_format='iso') # Waits for query to finish
 
 dt = str(datetime.datetime.now())
 
@@ -50,7 +56,7 @@ with open(file_name, 'w') as f:
     writer.writerow(data )
 
 
-# # # WRITING DATA TO A FILE
+# # WRITING DATA TO A FILE
 
 
 s3_client = boto3.client('s3')
