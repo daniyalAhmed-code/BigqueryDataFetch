@@ -2,6 +2,7 @@ import httplib2
 import datetime
 import ndjson
 import json
+import pytz
 import pandas as pd
 import sys
 from oauth2client.service_account import ServiceAccountCredentials
@@ -22,6 +23,8 @@ query = """
 response = table.scan(FilterExpression=Attr("timestamp").gt(time))
 
 
+
+
 if len(response['Items']) ==0 :
     query = query.replace("_where_", "")
     query = query.replace("_limit_", "")
@@ -38,10 +41,9 @@ job_config = bigquery.QueryJobConfig(
     ]
 )
 
-
 query_job = client.query(QUERY, job_config=job_config).to_dataframe()  # API request
-rows = query_job.to_json(orient='records',date_format='iso') # Waits for query to finish
 
+rows = query_job.to_json(orient='records',date_format='iso') # Waits for query to finish
 
 dt = str(datetime.datetime.now())
 
