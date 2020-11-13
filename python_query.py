@@ -1,7 +1,7 @@
 import httplib2
 import datetime
-import datetime
 import ndjson
+import json
 import pandas as pd
 import sys
 from oauth2client.service_account import ServiceAccountCredentials
@@ -36,22 +36,23 @@ else:
 client = bigquery.Client()
 QUERY = ( query)
 query_job = client.query(QUERY).to_dataframe()  # API request
-rows = query_job.to_json(orient='records')  # Waits for query to finish
-print(rows)
+rows = query_job.to_json(orient='records',date_format='iso') # Waits for query to finish
+
 
 dt = str(datetime.datetime.now())
 
-file_name = "data-"+dt+"-.json"
+file_name = "data-"+dt+".ndjson"
+
+data = json.loads(rows)
 
 with open(file_name, 'w') as f:
     writer = ndjson.writer(f, ensure_ascii=False)
-    writer.writerow(rows)
+    writer.writerow(data )
 
 
-# # WRITING DATA TO A FILE
+# # # WRITING DATA TO A FILE
 
 
 s3_client = boto3.client('s3')
 response = s3_client.upload_file(file_name, bucket_name, file_name)
-
 
