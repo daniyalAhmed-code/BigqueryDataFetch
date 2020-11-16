@@ -16,7 +16,7 @@ query = """
 """
 print(time)
 response = table.scan(FilterExpression=Attr("export_date").gt(time))
-print(len(response['Items']))
+
 if len(response['Items']) == 0 :
     query = query.replace("_where_", "")
 
